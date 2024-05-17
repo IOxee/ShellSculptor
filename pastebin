@@ -1,0 +1,25 @@
+#!/bin/bash
+
+API_KEY=''
+
+if [ "$#" -ne 1 ]; then
+    echo "Use: $0 file.pdf/.txt"
+    exit 1
+fi
+
+FILE_PATH=$1
+if [ ! -f "$FILE_PATH" ]; then
+    echo "The $FILE_PATH does not exist."
+    exit 1
+fi
+
+RESPONSE=$(curl -X POST -s --data-urlencode 'api_option=paste' \
+                 --data-urlencode "api_dev_key=$API_KEY" \
+                 --data-urlencode "api_paste_code=$(cat $FILE_PATH)" \
+                 https://pastebin.com/api/api_post.php)
+
+if [[ $RESPONSE == *pastebin.com* ]]; then
+    echo "File uploaded successfully: $RESPONSE"
+else
+    echo "Error when you upload the file: $RESPONSE"
+fi

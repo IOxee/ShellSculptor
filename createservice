@@ -1,0 +1,26 @@
+#!/bin/bash
+
+read -p "Enter the service name (e.g., PressAPI): " service_name
+read -p "Enter the service description: " description
+read -p "Enter the working directory (WorkingDirectory): " working_directory
+read -p "Enter the DLL file name (e.g., PressupostosTechtivaAPI.dll): " dll_name
+
+service_file_content="[Unit]
+Description=$description
+
+[Service]
+WorkingDirectory=$working_directory
+ExecStart=/usr/bin/dotnet $working_directory/$dll_name
+Restart=always
+
+[Install]
+WantedBy=multi-user.target"
+
+service_file_path="/etc/systemd/system/${service_name}.service"
+
+echo "$service_file_content" | sudo tee $service_file_path > /dev/null
+
+sudo systemctl daemon-reload
+sudo systemctl enable ${service_name}.service
+sudo systemctl start ${service_name}.service
+sudo systemctl status ${service_name}.service

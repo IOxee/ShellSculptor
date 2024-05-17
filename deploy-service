@@ -1,0 +1,45 @@
+#!/bin/bash
+
+if [ "$#" -lt 4 ]; then
+    echo "Usage: $0 <destination_directory> <zip_file> <service_name> <executable_path> [service_description]"
+    exit 1
+fi
+
+DESTINATION_DIRECTORY="$1"
+ZIP_FILE="$2"
+SERVICE_NAME="$3"
+RELATIVE_EXECUTABLE_PATH="$4"
+SERVICE_DESCRIPTION="${5:-'Service deployed by deploy-service'}"
+
+deploy "$DESTINATION_DIRECTORY" "$ZIP_FILE"
+
+if [ $? -ne 0 ]; then
+    echo "Deployment error, aborting service creation."
+    exit 2
+fi
+
+ABSOLUTE_EXECUTABLE_PATH=$(realpath "$RELATIVE_EXECUTABLE_PATH")
+ABSOLUTE_WORKING_DIRECTORY=$(realpath "$DESTINATION_DIRECTORY")
+
+echo "Creating service $SERVICE_NAME..."
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+
+cat << EOF > "$SERVICE_FILE"
+[Unit]
+Description=$SERVICE_DESCRIPTION
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/dotnet $ABSOLUTE_EXECUTABLE_PATH
+WorkingDirectory=$ABSOLUTE_WORKING_DIRECTORY
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable "$SERVICE_NAME"
+systemctl start "$SERVICE_NAME"
+
+echo "Service $SERVICE_NAME created and started."

@@ -1,0 +1,76 @@
+#!/bin/bash
+
+if [ $# -ne 3 ]; then
+  echo "Usage: $0 <database_name> <destination_directory> <user:group>"
+  exit 1
+fi
+
+DATABASE_NAME=$1
+DESTINATION=$2
+USER_GROUP=$3
+YOUR_PASSWORD="YourStrong@Passw0rd"
+
+if [ ! -d "$DESTINATION" ]; then
+  echo "Destination directory $DESTINATION does not exist."
+  exit 1
+fi
+
+if ! id -u "$(echo $USER_GROUP | cut -d':' -f1)" >/dev/null 2>&1; then
+  echo "The specified user does not exist."
+  exit 1
+fi
+
+if ! getent group "$(echo $USER_GROUP | cut -d':' -f2)" >/dev/null 2>&1; then
+  echo "The specified group does not exist."
+  exit 1
+fi
+
+CURRENT_DATE=$(date +"%Y%m%d")
+BACKUP_FILE="${DATABASE_NAME}_${CURRENT_DATE}.bak"
+TEMP_DIR="/var/opt/mssql/backups"
+
+if [ ! -d "$TEMP_DIR" ]; then
+  mkdir -p "$TEMP_DIR"
+  chown mssql:mssql "$TEMP_DIR"
+  chmod 770 "$TEMP_DIR"
+fi
+
+BACKUP_PATH="${TEMP_DIR}/${BACKUP_FILE}"
+
+/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P $YOUR_PASSWORD -Q "BACKUP DATABASE [$DATABASE_NAME] TO DISK = N'$BACKUP_PATH' WITH NOFORMAT, NOINIT, NAME = '$DATABASE_NAME-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
+
+if [ $? -eq 0 ]; then
+  echo "Database $DATABASE_NAME has been backed up to $BACKUP_PATH"
+else
+  echo "Error backing up the database $DATABASE_NAME"
+  exit 1
+fi
+
+find "$DESTINATION" -type f -name "${DATABASE_NAME}_*.bak" ! -name "$BACKUP_FILE" -exec rm -f {} \;
+
+cp "$BACKUP_PATH" "$DESTINATION"
+
+if [ $? -eq 0 ]; then
+  echo "File $BACKUP_FILE has been copied to $DESTINATION successfully."
+else
+  echo "Error copying the file $BACKUP_FILE to $DESTINATION"
+  exit 1
+fi
+
+chown "$USER_GROUP" "$DESTINATION/$BACKUP_FILE"
+
+if [ $? -eq 0 ]; then
+  echo "Owner of the file $DESTINATION/$BACKUP_FILE has been changed to $USER_GROUP."
+else
+  echo "Error changing the owner of the file $DESTINATION/$BACKUP_FILE"
+  exit 1
+fi
+
+rm -f "$BACKUP_PATH"
+
+if [ $? -eq 0 ]; then
+  echo "Original backup file $BACKUP_PATH has been deleted."
+else
+  echo "Error deleting the original backup file $BACKUP_PATH"
+  exit 1
+fi

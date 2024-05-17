@@ -1,0 +1,30 @@
+#!/bin/bash
+
+if ! command -v unzip &> /dev/null
+then
+    echo "'unzip' is not installed. Installing..."
+    sudo apt-get update
+    sudo apt-get install -y unzip
+fi
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <destination_directory> <zip_file>"
+    exit 1
+fi
+
+DESTINATION_DIRECTORY="$1"
+ZIP_FILE="$2"
+
+if [ ! -d "$DESTINATION_DIRECTORY" ]; then
+    mkdir -p "$DESTINATION_DIRECTORY"
+fi
+
+unzip "$ZIP_FILE" -d "$DESTINATION_DIRECTORY"
+cd "$DESTINATION_DIRECTORY"
+
+find . -type f \( -name "*.dll" -or -name "*.exe" \) -exec chmod 555 {} \;
+find . -type f | grep -E "\.config$|\.json$|\.xml$" | xargs chmod 655
+find . -type f ! \( -name "*.dll" -or -name "*.exe" \) | grep -vE "\.config$|\.json$|\.xml$" | xargs chmod 444
+
+cd -
+echo "Deployment completed in '$DESTINATION_DIRECTORY'"

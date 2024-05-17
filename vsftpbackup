@@ -1,0 +1,23 @@
+#!/bin/bash
+
+BACKUP_DIR="/home/user/APPs/VSFTP"
+BACKUP_FILE="/home/user/APPs/VSFTP/vsftpd_backup_$(date +'%Y%m%d').tar.gz"
+
+mkdir -p $BACKUP_DIR
+if [ -f "/etc/vsftpd.conf" ]; then
+    cp /etc/vsftpd.conf $BACKUP_DIR/
+else
+    echo "The VSFTPD configuration file was not found in/etc/vsftpd.conf"
+fi
+
+if [ -d "/srv/ftp" ]; then
+    cp -r /srv/ftp $BACKUP_DIR/
+else
+    echo "The FTP data directory was not found in/srv/ftp"
+fi
+
+tar -czvf $BACKUP_FILE -C $BACKUP_DIR .
+
+find $BACKUP_DIR -name "vsftpd_backup_*.tar.gz" -type f -mtime +30 -exec rm {} \;
+
+chown ftpuser:ftpuser $BACKUP_DIR
